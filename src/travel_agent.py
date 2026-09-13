@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from mcp_server import MCPTravelServer
 from prompts import FINAL_TRAVEL_SYNTHESIS_PROMPT, REACT_AGENT_SYSTEM_PROMPT
 from providers import GeminiProvider, OpenAIProvider
-from state_store import add_memory, append_message, load_state, recent_memories
+from state_store import add_memory, append_message, get_session_private, load_state, recent_memories
 
 
 load_dotenv()
@@ -30,6 +30,7 @@ DESTINATION_HINTS = [
     "Hà Nội",
     "Ha Noi",
     "Sapa",
+    "Sa Pa",
     "Đà Lạt",
     "Da Lat",
     "Nha Trang",
@@ -37,6 +38,22 @@ DESTINATION_HINTS = [
     "Phu Quoc",
     "Huế",
     "Hue",
+    "Hạ Long",
+    "Ha Long",
+    "Ninh Bình",
+    "Ninh Binh",
+    "Hồ Chí Minh",
+    "Ho Chi Minh",
+    "Cần Thơ",
+    "Can Tho",
+    "Quy Nhơn",
+    "Quy Nhon",
+    "Mũi Né",
+    "Mui Ne",
+    "Vũng Tàu",
+    "Vung Tau",
+    "Việt Nam",
+    "Vietnam",
     "Bangkok",
     "Singapore",
     "Tokyo",
@@ -62,30 +79,69 @@ INTEREST_KEYWORDS = {
     "family": "family",
 }
 
+TRAVEL_KEYWORDS = [
+    "du lịch",
+    "lịch trình",
+    "chuyến đi",
+    "đi chơi",
+    " đi ",
+    "đến",
+    "tới",
+    "khách sạn",
+    "thời tiết",
+    "địa điểm",
+    "tham quan",
+    "ngân sách",
+    " ngày",
+    " đêm",
+    "travel",
+    "trip",
+    "itinerary",
+    "visit",
+    "weather",
+    "budget",
+    "hotel",
+]
+
+GREETING_WORDS = {"hello", "hi", "hey", "chào", "xin chào", "alo", "chào bạn"}
+
+
+def _is_simple_greeting(text: str) -> bool:
+    normalized = text.strip().lower().strip("!. ")
+    return normalized in GREETING_WORDS
+
+
+def _has_travel_intent(text: str) -> bool:
+    lowered = f" {text.lower()} "
+    return any(keyword in lowered for keyword in TRAVEL_KEYWORDS)
+
 
 def _extract_destination(text: str, profile: Dict[str, Any]) -> str:
     lowered = text.lower()
     for hint in DESTINATION_HINTS:
         if hint.lower() in lowered:
             return hint
+
     patterns = [
-        r"(?:đi|den|đến|toi|tới)\s+([A-ZÀ-Ỵa-zà-ỵ\s]{2,40}?)(?:\s+\d|\s+trong|\s+ngân|\s+ngan|,|\.|$)",
-        r"(?:ở|o)\s+([A-ZÀ-Ỵa-zà-ỵ\s]{2,40}?)(?:\s+\d|\s+trong|\s+ngân|\s+ngan|,|\.|$)",
+        r"(?:đi|den|đến|toi|tới|visit|travel to|go to)\s+([A-ZÀ-Ỵa-zà-ỵ\s]{2,40}?)(?:\s+\d|\s+trong|\s+ngân|\s+ngan|,|\.|$)",
+        r"(?:ở|o|in)\s+([A-ZÀ-Ỵa-zà-ỵ\s]{2,40}?)(?:\s+\d|\s+trong|\s+ngân|\s+ngan|,|\.|$)",
     ]
     for pattern in patterns:
         match = re.search(pattern, text, flags=re.IGNORECASE)
         if match:
-            return match.group(1).strip().title()
-    return profile.get("last_destination") or "Da Nang, Vietnam"
+            candidate = match.group(1).strip(" .,!").title()
+            if candidate.lower() not in {"chơi", "du lịch", "travel", "trip"}:
+                return candidate
+    return profile.get("last_destination") or ""
 
 
 def _extract_duration(text: str) -> int:
     match = re.search(r"(\d+)\s*(?:ngày|ngay|days?)", text, flags=re.IGNORECASE)
     if match:
-        return max(1, min(int(match.group(1)), 7))
+        return max(1, min(int(match.group(1)), 14))
     match = re.search(r"(\d+)\s*(?:đêm|dem|nights?)", text, flags=re.IGNORECASE)
     if match:
-        return max(1, min(int(match.group(1)) + 1, 7))
+        return max(1, min(int(match.group(1)) + 1, 14))
     return 3
 
 
@@ -141,8 +197,8 @@ def _call_tool(server: MCPTravelServer, trace: List[Dict[str, Any]], name: str, 
     return result
 
 
-def _valid_key(name: str) -> str:
-    value = os.getenv(name, "").strip()
+def _valid_key(settings: Dict[str, Any], setting_name: str) -> str:
+    value = str(settings.get(setting_name) or "").strip()
     if value and not value.startswith("your_"):
         return value
     return ""
@@ -155,12 +211,10 @@ def _is_quota_error(exc: Exception) -> bool:
 
 
 def _generate_with_model_fallback(payload: Dict[str, Any], settings: Dict[str, Any], trace: List[Dict[str, Any]]) -> tuple[str, str]:
-    openai_key = _valid_key("OPENAI_API_KEY")
-    gemini_key = _valid_key("GEMINI_API_KEY")
+    openai_key = _valid_key(settings, "openai_api_key")
+    gemini_key = _valid_key(settings, "gemini_api_key")
     if not openai_key and not gemini_key:
-        raise ValueError(
-            "Chưa cấu hình API key. Hãy nhập GEMINI_API_KEY hoặc OPENAI_API_KEY trong Settings hoặc file .env."
-        )
+        raise ValueError("Chưa cấu hình API key. Hãy nhập Gemini hoặc GPT key trong Settings của chat window này.")
 
     prompt = json.dumps(payload, ensure_ascii=False, indent=2)
     system_prompt = f"{REACT_AGENT_SYSTEM_PROMPT}\n\n{FINAL_TRAVEL_SYNTHESIS_PROMPT}"
@@ -177,7 +231,7 @@ def _generate_with_model_fallback(payload: Dict[str, Any], settings: Dict[str, A
                     "action_type": "LLM_SYNTHESIS",
                     "provider": "gemini",
                     "model": gemini_model,
-                    "thought": "Gemini duoc uu tien khi co API key.",
+                    "thought": "Gemini được ưu tiên khi session có API key.",
                     "latency_ms": round((time.time() - started) * 1000, 2),
                 }
             )
@@ -192,7 +246,7 @@ def _generate_with_model_fallback(payload: Dict[str, Any], settings: Dict[str, A
                     "from_provider": "gemini",
                     "to_provider": "openai",
                     "reason": str(exc),
-                    "thought": "Gemini het quota/rate-limit, fallback sang GPT.",
+                    "thought": "Gemini hết quota/rate-limit, fallback sang GPT trong cùng session.",
                     "latency_ms": 0,
                 }
             )
@@ -205,22 +259,55 @@ def _generate_with_model_fallback(payload: Dict[str, Any], settings: Dict[str, A
             "action_type": "LLM_SYNTHESIS",
             "provider": "openai",
             "model": openai_model,
-            "thought": "Dung GPT vi khong co Gemini key hoac Gemini da het quota.",
+            "thought": "Dùng GPT vì session không có Gemini key hoặc Gemini đã hết quota.",
             "latency_ms": round((time.time() - started) * 1000, 2),
         }
     )
     return answer, "openai"
 
 
+def _store_short_reply(session_id: str, user_message: str, answer: str, action_type: str) -> Dict[str, Any]:
+    append_message(session_id, "user", user_message)
+    trace = [{"step": 1, "action_type": action_type, "output": answer, "latency_ms": 0}]
+    append_message(session_id, "assistant", answer, trace)
+    save_waterfall_trace(trace)
+    return {"answer": answer, "trace": trace, "intent": {}, "observations": {}}
+
+
 def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
     state = load_state()
+    session = get_session_private(session_id)
     profile = state["profile"]
-    settings = state["settings"]
+    settings = session.get("settings", {})
+
+    if _is_simple_greeting(user_message):
+        answer = (
+            "Chào bạn! Mình là trợ lý lập kế hoạch du lịch. "
+            "Bạn chỉ cần cho mình điểm đến, số ngày, ngân sách và sở thích, ví dụ: "
+            "'Mình muốn đi Huế 3 ngày, thích văn hóa và đồ ăn địa phương'."
+        )
+        return _store_short_reply(session_id, user_message, answer, "GREETING")
+
+    if not _has_travel_intent(user_message):
+        answer = (
+            "Mình có thể giúp bạn lập lịch trình du lịch dựa trên thời tiết, địa điểm, khoảng cách, ngân sách và sở thích. "
+            "Bạn muốn đi đâu và trong bao lâu?"
+        )
+        return _store_short_reply(session_id, user_message, answer, "ASK_TRAVEL_CONTEXT")
+
+    destination = _extract_destination(user_message, profile)
+    if not destination:
+        answer = (
+            "Bạn muốn đi địa điểm nào? Hãy cho mình điểm đến cụ thể, ví dụ: Hà Nội, Huế, Đà Lạt, Phú Quốc, Ninh Bình, "
+            "hoặc một thành phố/quốc gia bất kỳ. Nếu có thêm số ngày, ngân sách và sở thích thì mình sẽ lập lịch trình chính xác hơn."
+        )
+        return _store_short_reply(session_id, user_message, answer, "MISSING_DESTINATION")
+
     server = MCPTravelServer()
     append_message(session_id, "user", user_message)
 
     intent = {
-        "destination": _extract_destination(user_message, profile),
+        "destination": destination,
         "duration_days": _extract_duration(user_message),
         "start_date": _extract_start_date(user_message),
         "budget": _extract_budget(user_message, profile),
@@ -232,7 +319,7 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
         {
             "step": 1,
             "action_type": "THOUGHT",
-            "thought": "Phan tich yeu cau du lich, profile va memory de chon tool MCP can goi.",
+            "thought": "Phân tích yêu cầu du lịch, profile và memory để chọn tool MCP cần gọi.",
             "intent": intent,
             "latency_ms": 0,
         }
@@ -259,27 +346,26 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
         route = _call_tool(server, trace, "estimate_route_distance", {"origin": intent["origin"], "destination": intent["destination"]})
 
     observations = {"weather": weather, "places": places, "route": route}
-    memories = recent_memories()
     synthesis_payload = {
         "profile": profile,
-        "recent_memories": memories,
+        "recent_memories": recent_memories(),
         "user_request": user_message,
         "intent": intent,
         "observations": observations,
     }
 
     try:
-        final_answer, used_provider = _generate_with_model_fallback(synthesis_payload, settings, trace)
+        final_answer, _used_provider = _generate_with_model_fallback(synthesis_payload, settings, trace)
     except ValueError:
         final_answer = (
-            "Chưa cấu hình API key nên mình không sinh lịch trình bằng LLM thật. "
-            "Hãy mở Settings và nhập GEMINI_API_KEY hoặc OPENAI_API_KEY, hoặc thêm key vào file .env rồi gửi lại yêu cầu."
+            "Chat window này chưa có API key nên mình chưa thể sinh lịch trình bằng LLM thật. "
+            "Hãy mở Settings và nhập Gemini API key hoặc GPT API key cho session này, rồi gửi lại yêu cầu."
         )
         trace.append(
             {
                 "step": len(trace) + 1,
                 "action_type": "CONFIG_REQUIRED",
-                "thought": "Dung xu ly vi che do real API yeu cau Gemini hoac GPT API key.",
+                "thought": "Dừng xử lý vì session chưa có Gemini/GPT API key.",
                 "output": final_answer,
                 "latency_ms": 0,
             }
@@ -293,7 +379,7 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
             {
                 "step": len(trace) + 1,
                 "action_type": "LLM_ERROR",
-                "thought": "LLM provider tra ve loi va khong co fallback hop le.",
+                "thought": "LLM provider trả về lỗi và không có fallback hợp lệ.",
                 "error": str(exc),
                 "output": final_answer,
                 "latency_ms": 0,
@@ -316,7 +402,7 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
         {
             "step": len(trace) + 1,
             "action_type": "FINAL_ANSWER",
-            "thought": "Tong hop Observation, profile va memory thanh cau tra loi cuoi cung.",
+            "thought": "Tổng hợp Observation, profile và memory thành câu trả lời cuối cùng.",
             "output": final_answer,
             "latency_ms": 0,
         }

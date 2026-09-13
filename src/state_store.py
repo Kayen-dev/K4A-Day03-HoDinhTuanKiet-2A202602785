@@ -33,16 +33,18 @@ DEFAULT_STATE: Dict[str, Any] = {
         "mobility_notes": "",
         "preferred_language": "vi",
     },
-    "settings": {
-        "provider": "auto",
-        "openai_model": "gpt-4o-mini",
-        "gemini_model": "gemini-2.5-flash",
-        "model": "gpt-4o-mini",
-        "has_openai_key": False,
-        "has_gemini_key": False,
-    },
+    "settings": {},
     "sessions": [],
     "memories": [],
+}
+
+DEFAULT_SETTINGS: Dict[str, Any] = {
+    "provider": "auto",
+    "openai_model": "gpt-4o-mini",
+    "gemini_model": "gemini-2.5-flash",
+    "model": "gemini-2.5-flash",
+    "openai_api_key": "",
+    "gemini_api_key": "",
 }
 
 
@@ -61,10 +63,13 @@ def load_state() -> Dict[str, Any]:
     for key, value in DEFAULT_STATE.items():
         if isinstance(value, dict):
             merged[key] = {**value, **state.get(key, {})}
+    merged["settings"] = {**DEFAULT_SETTINGS, **merged.get("settings", {})}
     if merged.get("settings", {}).get("provider") in ["mock", "openai", "gemini"]:
         merged["settings"]["provider"] = "auto"
-    merged["settings"]["has_openai_key"] = _has_key("OPENAI_API_KEY") or merged["settings"].get("has_openai_key", False)
-    merged["settings"]["has_gemini_key"] = _has_key("GEMINI_API_KEY") or merged["settings"].get("has_gemini_key", False)
+    for session in merged.get("sessions", []):
+        session["settings"] = {**DEFAULT_SETTINGS, **session.get("settings", {})}
+        if session["settings"].get("provider") in ["mock", "openai", "gemini"]:
+            session["settings"]["provider"] = "auto"
     return merged
 
 
@@ -91,42 +96,67 @@ def update_profile(profile: Dict[str, Any]) -> Dict[str, Any]:
     return clean
 
 
+def public_settings(settings: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    current = {**DEFAULT_SETTINGS, **(settings or {})}
+    return {
+        "provider": "auto",
+        "model": current.get("model") or current.get("gemini_model", "gemini-2.5-flash"),
+        "openai_model": current.get("openai_model", "gpt-4o-mini"),
+        "gemini_model": current.get("gemini_model", "gemini-2.5-flash"),
+        "has_openai_key": bool(current.get("openai_api_key")),
+        "has_gemini_key": bool(current.get("gemini_api_key")),
+    }
+
+
+def public_session(session: Dict[str, Any]) -> Dict[str, Any]:
+    clean = {k: v for k, v in session.items() if k != "settings"}
+    clean["settings"] = public_settings(session.get("settings"))
+    return clean
+
+
 def update_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
     state = load_state()
+    session_id = settings.get("session_id", "")
     provider = "auto"
-    openai_model = settings.get("openai_model") or settings.get("model") or state["settings"].get("openai_model", "gpt-4o-mini")
-    gemini_model = settings.get("gemini_model") or state["settings"].get("gemini_model", "gemini-2.5-flash")
+    base_settings = state["settings"]
+    target_session = None
+    for session in state["sessions"]:
+        if session.get("id") == session_id:
+            target_session = session
+            base_settings = session.get("settings", DEFAULT_SETTINGS)
+            break
+
+    openai_model = settings.get("openai_model") or settings.get("model") or base_settings.get("openai_model", "gpt-4o-mini")
+    gemini_model = settings.get("gemini_model") or base_settings.get("gemini_model", "gemini-2.5-flash")
     openai_key = settings.get("openai_api_key", "").strip()
     gemini_key = settings.get("gemini_api_key", "").strip()
+    updated = {
+        **DEFAULT_SETTINGS,
+        **base_settings,
+        "provider": provider,
+        "model": gemini_model,
+        "openai_model": openai_model,
+        "gemini_model": gemini_model,
+    }
+    if openai_key:
+        updated["openai_api_key"] = openai_key
+    if gemini_key:
+        updated["gemini_api_key"] = gemini_key
 
-    state["settings"].update(
-        {
-            "provider": provider,
-            "model": gemini_model,
-            "openai_model": openai_model,
-            "gemini_model": gemini_model,
-            "has_openai_key": bool(openai_key) or _has_key("OPENAI_API_KEY") or state["settings"].get("has_openai_key", False),
-            "has_gemini_key": bool(gemini_key) or _has_key("GEMINI_API_KEY") or state["settings"].get("has_gemini_key", False),
-        }
-    )
+    if target_session:
+        target_session["settings"] = updated
+        save_state(state)
+        return public_settings(updated)
+
+    state["settings"] = updated
     save_state(state)
-
     env_values = {"LLM_PROVIDER": "auto", "OPENAI_MODEL": openai_model, "GEMINI_MODEL": gemini_model}
     if openai_key:
         env_values["OPENAI_API_KEY"] = openai_key
-        os.environ["OPENAI_API_KEY"] = openai_key
     if gemini_key:
         env_values["GEMINI_API_KEY"] = gemini_key
-        os.environ["GEMINI_API_KEY"] = gemini_key
     write_env_values(env_values)
-    os.environ["LLM_PROVIDER"] = "auto"
-    os.environ["OPENAI_MODEL"] = openai_model
-    os.environ["GEMINI_MODEL"] = gemini_model
-
-    public_settings = dict(state["settings"])
-    public_settings.pop("openai_api_key", None)
-    public_settings.pop("gemini_api_key", None)
-    return public_settings
+    return public_settings(updated)
 
 
 def write_env_values(values: Dict[str, str]) -> None:
@@ -171,18 +201,25 @@ def create_session(title: str = "New trip") -> Dict[str, Any]:
         "created_at": _now(),
         "updated_at": _now(),
         "messages": [],
+        "settings": deepcopy(DEFAULT_SETTINGS),
     }
     state["sessions"].insert(0, session)
     save_state(state)
-    return session
+    return public_session(session)
 
 
 def get_session(session_id: str) -> Dict[str, Any]:
+    session = get_session_private(session_id)
+    return public_session(session)
+
+
+def get_session_private(session_id: str) -> Dict[str, Any]:
     state = load_state()
     for session in state["sessions"]:
         if session["id"] == session_id:
             return session
-    return create_session()
+    created = create_session()
+    return get_session_private(created["id"])
 
 
 def append_message(session_id: str, role: str, content: str, trace: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:

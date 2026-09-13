@@ -16,7 +16,7 @@ from urllib.parse import unquote, urlparse
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from state_store import create_session, get_session, list_sessions, load_state, update_profile, update_settings
+from state_store import create_session, get_session, list_sessions, load_state, public_settings, update_profile, update_settings
 from travel_agent import answer_travel_request
 
 
@@ -66,7 +66,7 @@ class TravelWebHandler(BaseHTTPRequestHandler):
             state = load_state()
             public = {
                 "profile": state["profile"],
-                "settings": state["settings"],
+                "settings": public_settings(state.get("settings")),
                 "sessions": list_sessions(),
                 "memories": state.get("memories", [])[:8],
             }

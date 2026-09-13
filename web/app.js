@@ -98,6 +98,7 @@ async function boot() {
   state.profile = payload.profile;
   state.settings = payload.settings;
   state.sessions = payload.sessions;
+  state.settings = payload.settings;
   renderProfile();
   renderMemories(payload.memories);
   if (!state.profile?.name && HTMLDialogElement.prototype.showModal) {
@@ -107,10 +108,12 @@ async function boot() {
     await loadSession(state.sessions[0].id);
   } else {
     const created = await api("/api/sessions", { method: "POST", body: JSON.stringify({ title: "New trip" }) });
-    state.sessions.unshift(created.session);
-    state.activeSessionId = created.session.id;
-    renderSessions();
-    renderMessages(created.session);
+  state.sessions.unshift(created.session);
+  state.activeSessionId = created.session.id;
+  state.settings = created.session.settings || state.settings;
+  renderSessions();
+  renderProfile();
+  renderMessages(created.session);
   }
 }
 
@@ -123,7 +126,9 @@ async function refreshSessions() {
 async function loadSession(sessionId) {
   state.activeSessionId = sessionId;
   const payload = await api(`/api/sessions/${sessionId}`);
+  state.settings = payload.session.settings || state.settings;
   renderSessions();
+  renderProfile();
   renderMessages(payload.session);
 }
 
@@ -131,7 +136,9 @@ $("#newSessionBtn").addEventListener("click", async () => {
   const payload = await api("/api/sessions", { method: "POST", body: JSON.stringify({ title: "New trip" }) });
   state.sessions.unshift(payload.session);
   state.activeSessionId = payload.session.id;
+  state.settings = payload.session.settings || state.settings;
   renderSessions();
+  renderProfile();
   renderMessages(payload.session);
 });
 
@@ -144,7 +151,7 @@ $("#chatForm").addEventListener("submit", async (event) => {
   $("#sendBtn").disabled = true;
   const temp = { role: "user", content: message };
   $("#messages").insertAdjacentHTML("beforeend", renderMessage(temp));
-  $("#messages").insertAdjacentHTML("beforeend", `<article class="message assistant" id="thinking">Checking live APIs and building your itinerary...</article>`);
+  $("#messages").insertAdjacentHTML("beforeend", `<article class="message assistant" id="thinking">Mình đang kiểm tra dữ liệu thời tiết, địa điểm và khoảng cách thực tế để lập lịch trình phù hợp cho bạn...</article>`);
   $("#messages").scrollTop = $("#messages").scrollHeight;
   try {
     const payload = await api("/api/chat", {
@@ -152,6 +159,7 @@ $("#chatForm").addEventListener("submit", async (event) => {
       body: JSON.stringify({ session_id: state.activeSessionId, message }),
     });
     state.activeSessionId = payload.session.id;
+    state.settings = payload.session.settings || state.settings;
     await refreshSessions();
     renderMessages(payload.session);
     const fresh = await api("/api/state");
@@ -178,7 +186,16 @@ $("#profileForm").addEventListener("submit", async (event) => {
 });
 
 $("#skipProfileBtn").addEventListener("click", () => $("#profileDialog").close());
-$("#settingsBtn").addEventListener("click", () => $("#settingsDialog").showModal());
+$("#settingsBtn").addEventListener("click", () => {
+  const form = $("#settingsForm");
+  if (form) {
+    form.elements.gemini_model.value = state.settings?.gemini_model || "gemini-2.5-flash";
+    form.elements.openai_model.value = state.settings?.openai_model || "gpt-4o-mini";
+    form.elements.gemini_api_key.value = "";
+    form.elements.openai_api_key.value = "";
+  }
+  $("#settingsDialog").showModal();
+});
 $("#closeSettingsBtn").addEventListener("click", () => $("#settingsDialog").close());
 
 $("#settingsForm").addEventListener("submit", async (event) => {
@@ -186,6 +203,7 @@ $("#settingsForm").addEventListener("submit", async (event) => {
   const form = new FormData(event.currentTarget);
   const payload = Object.fromEntries(form.entries());
   payload.provider = "auto";
+  payload.session_id = state.activeSessionId;
   const result = await api("/api/settings", { method: "POST", body: JSON.stringify(payload) });
   state.settings = result.settings;
   renderProfile();
