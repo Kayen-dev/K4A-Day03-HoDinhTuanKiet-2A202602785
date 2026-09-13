@@ -2,9 +2,9 @@
   {
     "step": 1,
     "action_type": "THOUGHT",
-    "thought": "Phan tich yeu cau du lich, profile va memory de chon tool MCP can goi.",
+    "thought": "Phân tích yêu cầu du lịch, profile và memory để chọn tool MCP cần gọi.",
     "intent": {
-      "destination": "Da Nang",
+      "destination": "Đà Nẵng",
       "duration_days": 2,
       "start_date": "2026-09-13",
       "budget": "mid-range",
@@ -21,7 +21,7 @@
     "action_type": "TOOL_EXECUTION",
     "tool_name": "get_weather_forecast",
     "arguments": {
-      "destination": "Da Nang",
+      "destination": "Đà Nẵng",
       "start_date": "2026-09-13",
       "duration_days": 2
     },
@@ -54,14 +54,14 @@
         }
       ]
     },
-    "latency_ms": 1925.02
+    "latency_ms": 2214.3
   },
   {
     "step": 3,
     "action_type": "TOOL_EXECUTION",
     "tool_name": "search_travel_places",
     "arguments": {
-      "destination": "Da Nang",
+      "destination": "Đà Nẵng",
       "interests": [
         "food",
         "culture"
@@ -71,7 +71,7 @@
     "observation": {
       "status": "SUCCESS",
       "source": "Wikipedia GeoSearch",
-      "destination": "Da Nang",
+      "destination": "Đà Nẵng",
       "interests": [
         "food",
         "culture"
@@ -97,13 +97,13 @@
         }
       ]
     },
-    "latency_ms": 1932.66
+    "latency_ms": 2512.32
   },
   {
     "step": 4,
     "action_type": "CONFIG_REQUIRED",
-    "thought": "Dung xu ly vi che do real API yeu cau Gemini hoac GPT API key.",
-    "output": "Chưa cấu hình API key nên mình không sinh lịch trình bằng LLM thật. Hãy mở Settings và nhập GEMINI_API_KEY hoặc OPENAI_API_KEY, hoặc thêm key vào file .env rồi gửi lại yêu cầu.",
+    "thought": "Dừng xử lý vì session chưa có Gemini/GPT API key.",
+    "output": "Chat window này chưa có API key nên mình chưa thể sinh lịch trình bằng LLM thật. Hãy mở Settings và nhập Gemini API key hoặc GPT API key cho session này, rồi gửi lại yêu cầu.",
     "latency_ms": 0
   }
 ]

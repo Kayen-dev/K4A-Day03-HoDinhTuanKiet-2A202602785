@@ -157,7 +157,7 @@ button {
   gap: 8px;
 }
 
-.session-item,
+.session-row,
 .memory-item {
   width: 100%;
   min-width: 0;
@@ -169,9 +169,44 @@ button {
   border-radius: 7px;
 }
 
-.session-item.active {
+.session-row.active {
   border-color: var(--sea);
   background: var(--mint);
+}
+
+.session-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: center;
+  padding: 0;
+  overflow: hidden;
+}
+
+.session-item {
+  min-width: 0;
+  padding: 10px;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+}
+
+.delete-session {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  border-radius: 6px;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.delete-session:hover,
+.delete-session:focus-visible {
+  color: white;
+  background: var(--coral);
+  outline: none;
 }
 
 .session-item strong,
@@ -224,10 +259,30 @@ button {
   overflow-wrap: anywhere;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.delete-chat-btn {
+  color: white;
+  background: var(--coral);
+  border-radius: 8px;
+  font-weight: 750;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.delete-chat-btn:hover {
+  background: #b84931;
+}
+
 .settings-btn {
   min-width: 96px;
   min-height: 40px;
 }
+
 
 .profile-strip {
   display: flex;
@@ -270,6 +325,47 @@ button {
   padding: 24px;
 }
 
+.message-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.message-row.user-row {
+  justify-content: flex-end;
+}
+
+.message-row.assistant-row {
+  justify-content: flex-start;
+}
+
+.delete-msg-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+  margin-top: 8px;
+}
+
+.message-row:hover .delete-msg-btn,
+.delete-msg-btn:focus-visible {
+  opacity: 1;
+}
+
+.delete-msg-btn:hover {
+  background: var(--coral);
+  color: white;
+}
+
 .message {
   max-width: 860px;
   min-width: 0;
@@ -281,16 +377,15 @@ button {
 }
 
 .message.user {
-  align-self: flex-end;
   color: white;
   background: var(--sea);
 }
 
 .message.assistant {
-  align-self: flex-start;
   background: white;
   border: 1px solid var(--line);
 }
+
 
 .trace {
   margin-top: 10px;

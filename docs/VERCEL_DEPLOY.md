@@ -27,10 +27,12 @@ api/state.py
 api/chat.py
 api/settings.py
 api/sessions.py
+api/profile.py
 ```
 
 ## Runtime Notes
 
-- Each chat session can store its own Gemini/OpenAI keys through the Settings dialog.
-- On Vercel, local JSON state is written to `/tmp/travel-agent`. This is suitable for demos, but not durable production storage.
-- For production persistence, replace `src/state_store.py` with Vercel KV, Upstash Redis, Supabase, or Postgres.
+- Each chat session stores its own Gemini/OpenAI keys through the Settings dialog.
+- Profile, chat windows, memory, and keys are persisted in that user's browser with `localStorage`.
+- The Python APIs are stateless: `/api/chat` receives the active session context, calls live APIs and an LLM, then returns the answer and trace.
+- For cross-device production accounts, move browser state to a database and encrypt API keys with a managed secret service.

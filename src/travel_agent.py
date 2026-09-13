@@ -266,19 +266,28 @@ def _generate_with_model_fallback(payload: Dict[str, Any], settings: Dict[str, A
     return answer, "openai"
 
 
-def _store_short_reply(session_id: str, user_message: str, answer: str, action_type: str) -> Dict[str, Any]:
-    append_message(session_id, "user", user_message)
+def _short_reply(answer: str, action_type: str) -> Dict[str, Any]:
     trace = [{"step": 1, "action_type": action_type, "output": answer, "latency_ms": 0}]
-    append_message(session_id, "assistant", answer, trace)
-    save_waterfall_trace(trace)
     return {"answer": answer, "trace": trace, "intent": {}, "observations": {}}
 
 
-def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
-    state = load_state()
-    session = get_session_private(session_id)
-    profile = state["profile"]
-    settings = session.get("settings", {})
+def generate_travel_response(
+    user_message: str,
+    profile: Dict[str, Any] | None = None,
+    settings: Dict[str, Any] | None = None,
+    memory_items: List[Dict[str, Any]] | None = None,
+    conversation_history: List[Dict[str, Any]] | None = None,
+    session_id: str = "browser-session",
+) -> Dict[str, Any]:
+    """Generate an answer without server-side persistence.
+
+    Vercel functions are stateless, so the browser sends the current profile,
+    session settings, memories, and recent messages with each request.
+    """
+    profile = profile or {}
+    settings = settings or {}
+    memory_items = memory_items or []
+    conversation_history = conversation_history or []
 
     if _is_simple_greeting(user_message):
         answer = (
@@ -286,14 +295,14 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
             "Bạn chỉ cần cho mình điểm đến, số ngày, ngân sách và sở thích, ví dụ: "
             "'Mình muốn đi Huế 3 ngày, thích văn hóa và đồ ăn địa phương'."
         )
-        return _store_short_reply(session_id, user_message, answer, "GREETING")
+        return _short_reply(answer, "GREETING")
 
     if not _has_travel_intent(user_message):
         answer = (
             "Mình có thể giúp bạn lập lịch trình du lịch dựa trên thời tiết, địa điểm, khoảng cách, ngân sách và sở thích. "
             "Bạn muốn đi đâu và trong bao lâu?"
         )
-        return _store_short_reply(session_id, user_message, answer, "ASK_TRAVEL_CONTEXT")
+        return _short_reply(answer, "ASK_TRAVEL_CONTEXT")
 
     destination = _extract_destination(user_message, profile)
     if not destination:
@@ -301,10 +310,9 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
             "Bạn muốn đi địa điểm nào? Hãy cho mình điểm đến cụ thể, ví dụ: Hà Nội, Huế, Đà Lạt, Phú Quốc, Ninh Bình, "
             "hoặc một thành phố/quốc gia bất kỳ. Nếu có thêm số ngày, ngân sách và sở thích thì mình sẽ lập lịch trình chính xác hơn."
         )
-        return _store_short_reply(session_id, user_message, answer, "MISSING_DESTINATION")
+        return _short_reply(answer, "MISSING_DESTINATION")
 
     server = MCPTravelServer()
-    append_message(session_id, "user", user_message)
 
     intent = {
         "destination": destination,
@@ -348,7 +356,8 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
     observations = {"weather": weather, "places": places, "route": route}
     synthesis_payload = {
         "profile": profile,
-        "recent_memories": recent_memories(),
+        "recent_memories": memory_items[-8:],
+        "recent_conversation": conversation_history[-10:],
         "user_request": user_message,
         "intent": intent,
         "observations": observations,
@@ -370,8 +379,6 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
                 "latency_ms": 0,
             }
         )
-        append_message(session_id, "assistant", final_answer, trace)
-        save_waterfall_trace(trace)
         return {"answer": final_answer, "trace": trace, "intent": intent, "observations": observations}
     except Exception as exc:
         final_answer = f"Không thể gọi LLM thật: {exc}"
@@ -385,8 +392,6 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
                 "latency_ms": 0,
             }
         )
-        append_message(session_id, "assistant", final_answer, trace)
-        save_waterfall_trace(trace)
         return {"answer": final_answer, "trace": trace, "intent": intent, "observations": observations}
 
     summary = f"{intent['destination']} | {intent['duration_days']} ngày | {intent['budget']} | {', '.join(intent['interests'])}"
@@ -396,7 +401,14 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
         "save_travel_plan",
         {"session_id": session_id, "destination": intent["destination"], "summary": summary},
     )
-    add_memory(session_id, "travel_plan", summary, {"destination": intent["destination"], "tool_save": saved})
+    memory = {
+        "id": f"memory-{int(time.time() * 1000)}",
+        "session_id": session_id,
+        "kind": "travel_plan",
+        "content": summary,
+        "metadata": {"destination": intent["destination"], "tool_save": saved},
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    }
 
     trace.append(
         {
@@ -408,9 +420,34 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
         }
     )
 
-    append_message(session_id, "assistant", final_answer, trace)
-    save_waterfall_trace(trace)
-    return {"answer": final_answer, "trace": trace, "intent": intent, "observations": observations}
+    return {
+        "answer": final_answer,
+        "trace": trace,
+        "intent": intent,
+        "observations": observations,
+        "memory": memory,
+    }
+
+
+def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
+    """Local-file adapter retained for the CLI and local development server."""
+    state = load_state()
+    session = get_session_private(session_id)
+    result = generate_travel_response(
+        user_message=user_message,
+        profile=state["profile"],
+        settings=session.get("settings", {}),
+        memory_items=recent_memories(),
+        conversation_history=session.get("messages", []),
+        session_id=session_id,
+    )
+    append_message(session_id, "user", user_message)
+    append_message(session_id, "assistant", result["answer"], result["trace"])
+    if result.get("memory"):
+        memory = result["memory"]
+        add_memory(session_id, memory["kind"], memory["content"], memory["metadata"])
+    save_waterfall_trace(result["trace"])
+    return result
 
 
 def save_waterfall_trace(trace_data: List[Dict[str, Any]]) -> None:

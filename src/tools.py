@@ -8,6 +8,8 @@ observe live data instead of answering from a fixed prompt.
 from __future__ import annotations
 
 import json
+import math
+import time
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -174,44 +176,186 @@ def execute_search_travel_places(destination: str, interests: Optional[List[str]
     interests = interests or []
     limit = max(3, min(int(limit or 6), 10))
     places: List[Dict[str, Any]] = []
-    source = "Wikipedia GeoSearch"
+    source = "OpenStreetMap Overpass"
     try:
         place = _geocode(destination)
         if place:
-            response = requests.get(
-                "https://en.wikipedia.org/w/api.php",
-                params={
-                    "action": "query",
-                    "list": "geosearch",
-                    "gscoord": f"{place['latitude']}|{place['longitude']}",
-                    "gsradius": 10000,
-                    "gslimit": limit,
-                    "format": "json",
-                },
-                timeout=HTTP_TIMEOUT,
+            lat, lon = place["latitude"], place["longitude"]
+            query = f"""
+                [out:json][timeout:10];
+                (
+                  nwr(around:8000,{lat},{lon})[name][tourism];
+                  nwr(around:8000,{lat},{lon})[name][historic];
+                  nwr(around:8000,{lat},{lon})[name][natural~"beach|peak|waterfall"];
+                  nwr(around:8000,{lat},{lon})[name][leisure~"park|nature_reserve"];
+                  nwr(around:5000,{lat},{lon})[name][amenity~"restaurant|cafe|marketplace"];
+                );
+                out center tags 50;
+            """
+            response = requests.post(
+                "https://overpass-api.de/api/interpreter",
+                data={"data": query},
+                timeout=10,
                 headers={"User-Agent": "TravelPlanningReActAgent/1.0"},
             )
             response.raise_for_status()
-            for item in response.json().get("query", {}).get("geosearch", []):
-                title = item.get("title", "")
-                weak_terms = ["hospital", "university", "diocese", "stadium"]
-                if any(term in title.lower() for term in weak_terms):
+            interest_tags = {
+                "food": {"restaurant", "cafe", "marketplace"},
+                "culture": {"museum", "gallery", "artwork", "attraction", "archaeological_site"},
+                "history": {"castle", "memorial", "monument", "ruins", "archaeological_site"},
+                "nature": {"park", "nature_reserve", "peak", "waterfall"},
+                "beach": {"beach", "beach_resort"},
+                "family": {"zoo", "theme_park", "aquarium", "park"},
+            }
+            wanted = set().union(*(interest_tags.get(item, set()) for item in interests))
+            seen = set()
+            ranked = []
+            for item in response.json().get("elements", []):
+                tags = item.get("tags") or {}
+                name = tags.get("name:vi") or tags.get("name")
+                if not name or name.casefold() in seen:
                     continue
-                places.append(
-                    {
-                        "name": title,
-                        "distance_m": item.get("dist"),
-                        "tags": interests,
-                        "why": "Dia diem gan khu vuc du lich, can xep theo thoi tiet va so thich.",
-                    }
-                )
+                item_lat = item.get("lat") or (item.get("center") or {}).get("lat")
+                item_lon = item.get("lon") or (item.get("center") or {}).get("lon")
+                if item_lat is None or item_lon is None:
+                    continue
+                category = tags.get("tourism") or tags.get("historic") or tags.get("natural") or tags.get("leisure") or tags.get("amenity") or "place"
+                if category in {"hotel", "hostel", "guest_house", "motel", "apartment", "camp_site"}:
+                    continue
+                distance_m = _haversine_m(lat, lon, item_lat, item_lon)
+                match_score = 2 if category in wanted else (1 if tags.get("tourism") or tags.get("historic") else 0)
+                seen.add(name.casefold())
+                ranked.append((match_score, distance_m, {
+                    "name": name,
+                    "category": category,
+                    "distance_m": round(distance_m),
+                    "latitude": item_lat,
+                    "longitude": item_lon,
+                    "website": tags.get("website") or tags.get("contact:website") or "",
+                }))
+            ranked.sort(key=lambda row: (-row[0], row[1]))
+            category_counts: Dict[str, int] = {}
+            for _, _, candidate in ranked:
+                category = candidate["category"]
+                if category_counts.get(category, 0) >= 2:
+                    continue
+                places.append(candidate)
+                category_counts[category] = category_counts.get(category, 0) + 1
+                if len(places) >= limit:
+                    break
+            if len(places) < limit:
+                selected_names = {item["name"] for item in places}
+                places.extend(row[2] for row in ranked if row[2]["name"] not in selected_names) 
+                places = places[:limit]
     except Exception as exc:
-        return _json({"status": "API_ERROR", "tool": "search_travel_places", "error": str(exc)})
+        return _search_places_nominatim(destination, interests, limit, str(exc))
 
     if not places:
         return _json({"status": "NOT_FOUND", "source": source, "destination": destination, "message": "Wikipedia GeoSearch khong tra ve dia diem phu hop."})
 
     return _json({"status": "SUCCESS", "source": source, "destination": destination, "interests": interests, "places": places[:limit]})
+
+
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius = 6_371_000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    value = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    return radius * 2 * math.atan2(math.sqrt(value), math.sqrt(1 - value))
+
+
+def _search_places_nominatim(destination: str, interests: List[str], limit: int, overpass_error: str) -> str:
+    query_by_interest = {
+        "food": "restaurant", "culture": "museum", "history": "monument",
+        "nature": "park", "beach": "beach", "family": "zoo", "nightlife": "bar",
+    }
+    queries = []
+    for interest in interests:
+        query = query_by_interest.get(interest)
+        if query and query not in queries:
+            queries.append(query)
+    queries = (queries or ["attraction"])[:2]
+    try:
+        center = _geocode(destination)
+        if not center:
+            return _json({"status": "NOT_FOUND", "destination": destination})
+        places = []
+        seen = set()
+        for index, query in enumerate(queries):
+            if index:
+                time.sleep(1.05)
+            response = requests.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={
+                    "q": f"{query}, {destination}", "format": "jsonv2",
+                    "limit": max(3, limit), "addressdetails": 1,
+                },
+                timeout=HTTP_TIMEOUT,
+                headers={"User-Agent": "TravelPlanningReActAgent/1.0 (educational project)"},
+            )
+            response.raise_for_status()
+            for item in response.json():
+                name = item.get("name") or (item.get("display_name") or "").split(",", 1)[0]
+                if not name or name.casefold() in seen:
+                    continue
+                lat, lon = float(item["lat"]), float(item["lon"])
+                seen.add(name.casefold())
+                places.append({
+                    "name": name,
+                    "category": item.get("type") or item.get("category") or query,
+                    "distance_m": round(_haversine_m(center["latitude"], center["longitude"], lat, lon)),
+                    "latitude": lat,
+                    "longitude": lon,
+                    "display_name": item.get("display_name", ""),
+                })
+        places.sort(key=lambda item: item["distance_m"])
+        if places:
+            return _json({
+                "status": "SUCCESS", "source": "OpenStreetMap Nominatim (live fallback)",
+                "destination": destination, "interests": interests, "places": places[:limit],
+                "upstream_note": f"Overpass unavailable: {overpass_error}",
+            })
+        return _search_places_wikipedia(destination, interests, limit, overpass_error)
+    except Exception as exc:
+        return _search_places_wikipedia(destination, interests, limit, f"{overpass_error}; Nominatim unavailable: {exc}")
+
+
+def _search_places_wikipedia(destination: str, interests: List[str], limit: int, overpass_error: str) -> str:
+    """Use a second live source when Overpass is temporarily unavailable."""
+    try:
+        place = _geocode(destination)
+        if not place:
+            return _json({"status": "NOT_FOUND", "destination": destination})
+        response = requests.get(
+            "https://en.wikipedia.org/w/api.php",
+            params={
+                "action": "query", "list": "geosearch",
+                "gscoord": f"{place['latitude']}|{place['longitude']}",
+                "gsradius": 10000, "gslimit": limit, "format": "json",
+            },
+            timeout=HTTP_TIMEOUT,
+            headers={"User-Agent": "TravelPlanningReActAgent/1.0"},
+        )
+        response.raise_for_status()
+        places = [
+            {"name": item.get("title", ""), "distance_m": item.get("dist"), "category": "wikipedia_article"}
+            for item in response.json().get("query", {}).get("geosearch", [])
+            if item.get("title")
+        ]
+        return _json({
+            "status": "SUCCESS" if places else "NOT_FOUND",
+            "source": "Wikipedia GeoSearch (live fallback)",
+            "destination": destination,
+            "interests": interests,
+            "places": places,
+            "upstream_note": f"Overpass unavailable: {overpass_error}",
+        })
+    except Exception as exc:
+        return _json({
+            "status": "API_ERROR", "tool": "search_travel_places",
+            "error": str(exc), "overpass_error": overpass_error,
+        })
 
 
 def execute_estimate_route_distance(origin: str, destination: str) -> str:

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse
+from datetime import datetime
+import uuid
 
-from _shared import JsonHandlerMixin
-from state_store import create_session, get_session, list_sessions
+from api._shared import JsonHandlerMixin
 
 
 def _session_id_from_path(path: str, query: dict) -> str:
@@ -18,18 +19,27 @@ def _session_id_from_path(path: str, query: dict) -> str:
 
 class handler(JsonHandlerMixin, BaseHTTPRequestHandler):
     def do_GET(self):
-        parsed = urlparse(self.path)
-        query = self.query_params()
-        session_id = _session_id_from_path(parsed.path, query)
-        if session_id:
-            self.send_json({"session": get_session(session_id)})
-            return
-        self.send_json({"sessions": list_sessions()})
+        self.send_json({"sessions": [], "storage": "browser-session"})
 
     def do_POST(self):
-        payload = self.read_json()
-        title = payload.get("title", "New trip")
-        self.send_json({"session": create_session(title)}, status=201)
+        try:
+            payload = self.read_json()
+            now = datetime.now().isoformat(timespec="seconds")
+            session = {
+                "id": uuid.uuid4().hex[:12],
+                "title": payload.get("title") or "New trip",
+                "created_at": now,
+                "updated_at": now,
+                "messages": [],
+            }
+            self.send_json({"session": session, "storage": "browser-session"}, status=201)
+        except Exception as exc:
+            self.send_error_json(exc)
+
+    def do_DELETE(self):
+        parsed = urlparse(self.path)
+        session_id = _session_id_from_path(parsed.path, self.query_params())
+        self.send_json({"deleted": bool(session_id), "session_id": session_id})
 
     def do_OPTIONS(self):
         self.send_json({})

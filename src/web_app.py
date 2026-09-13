@@ -17,7 +17,7 @@ from urllib.parse import unquote, urlparse
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from state_store import create_session, get_session, list_sessions, load_state, public_settings, update_profile, update_settings
-from travel_agent import answer_travel_request
+from travel_agent import generate_travel_response
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -91,12 +91,18 @@ class TravelWebHandler(BaseHTTPRequestHandler):
                 title = payload.get("title", "New trip")
                 return self._send_json({"session": create_session(title)}, status=201)
             if path == "/api/chat":
-                session_id = payload.get("session_id") or create_session("New trip")["id"]
                 message = payload.get("message", "").strip()
                 if not message:
                     return self._send_json({"error": "Message is required"}, status=400)
-                result = answer_travel_request(session_id, message)
-                return self._send_json({"session": get_session(session_id), **result})
+                result = generate_travel_response(
+                    user_message=message,
+                    profile=payload.get("profile") or {},
+                    settings=payload.get("settings") or {},
+                    memory_items=payload.get("memories") or [],
+                    conversation_history=payload.get("conversation_history") or [],
+                    session_id=payload.get("session_id") or "browser-session",
+                )
+                return self._send_json(result)
             return self._send_json({"error": "Unknown endpoint"}, status=404)
         except Exception as exc:
             return self._send_json({"error": str(exc)}, status=500)

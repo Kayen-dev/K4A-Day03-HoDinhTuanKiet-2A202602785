@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="utf-8" />
@@ -42,8 +42,12 @@
             <p class="eyebrow">Travel Planning ReAct Agent</p>
             <h2 id="activeTitle">Personalized itinerary builder</h2>
           </div>
-          <button class="settings-btn" id="settingsBtn" type="button">Settings</button>
+          <div class="topbar-actions">
+            <button class="delete-chat-btn" id="deleteActiveSessionBtn" type="button" title="Xóa cửa sổ chat này">Delete Chat</button>
+            <button class="settings-btn" id="settingsBtn" type="button">Settings</button>
+          </div>
         </header>
+
 
         <section class="profile-strip" id="profileStrip"></section>
 
@@ -118,7 +122,7 @@
         <div class="dialog-heading">
           <p class="eyebrow">Model settings</p>
           <h2>Connect Gemini and GPT keys</h2>
-          <p class="muted">Keys are saved to the local .env file. Gemini is preferred; GPT is used when Gemini is unavailable or out of quota.</p>
+          <p class="muted">Mỗi chat window lưu key riêng trong trình duyệt này. Agent ưu tiên Gemini và tự chuyển sang GPT khi Gemini hết quota.</p>
         </div>
         <div class="grid two">
           <label>
@@ -148,4 +152,3 @@
     <script src="/app.js"></script>
   </body>
 </html>
-
