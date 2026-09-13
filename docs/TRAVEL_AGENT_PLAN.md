@@ -4,7 +4,7 @@
 
 Build a local web app for a personalized travel assistant that combines:
 
-- LLM/GPT final synthesis
+- LLM final synthesis with Gemini-first / GPT fallback
 - ReAct-style tool observations
 - MCP JSON-RPC tool server
 - External APIs for live travel data
@@ -24,11 +24,11 @@ Build a local web app for a personalized travel assistant that combines:
 
 1. User opens `http://127.0.0.1:7860`.
 2. User fills basic profile: name, origin city, travel style, budget, interests, food/mobility notes.
-3. User enters OpenAI API key in Settings. This is required for final GPT synthesis.
+3. User enters Gemini and/or OpenAI API key in Settings. Gemini is preferred when available.
 4. User chats in a trip window.
 5. Agent extracts destination, duration, dates, budget, interests and origin city.
 6. Agent calls MCP tools to get observations.
-7. Agent synthesizes an itinerary using GPT through OpenAI API. If no key is configured, the app stops with a clear configuration message instead of using mock output.
+7. Agent synthesizes an itinerary using Gemini first. If Gemini is out of quota or rate-limited, the agent falls back to GPT. If no key is configured, the app stops with a clear configuration message instead of using mock output.
 8. Conversation, trace and memory are saved locally.
 
 ## Local Data
@@ -45,7 +45,7 @@ Waterfall trace is saved at:
 docs/trace_waterfall.json
 ```
 
-OpenAI settings are written to:
+Gemini/OpenAI settings are written to:
 
 ```text
 .env

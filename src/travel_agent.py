@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 from mcp_server import MCPTravelServer
 from prompts import FINAL_TRAVEL_SYNTHESIS_PROMPT, REACT_AGENT_SYSTEM_PROMPT
-from providers import OpenAIProvider
+from providers import GeminiProvider, OpenAIProvider
 from state_store import add_memory, append_message, load_state, recent_memories
 
 
@@ -141,6 +141,77 @@ def _call_tool(server: MCPTravelServer, trace: List[Dict[str, Any]], name: str, 
     return result
 
 
+def _valid_key(name: str) -> str:
+    value = os.getenv(name, "").strip()
+    if value and not value.startswith("your_"):
+        return value
+    return ""
+
+
+def _is_quota_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    quota_terms = ["quota", "rate limit", "rate_limit", "resource_exhausted", "429", "tokens", "insufficient_quota"]
+    return any(term in text for term in quota_terms)
+
+
+def _generate_with_model_fallback(payload: Dict[str, Any], settings: Dict[str, Any], trace: List[Dict[str, Any]]) -> tuple[str, str]:
+    openai_key = _valid_key("OPENAI_API_KEY")
+    gemini_key = _valid_key("GEMINI_API_KEY")
+    if not openai_key and not gemini_key:
+        raise ValueError(
+            "Chưa cấu hình API key. Hãy nhập GEMINI_API_KEY hoặc OPENAI_API_KEY trong Settings hoặc file .env."
+        )
+
+    prompt = json.dumps(payload, ensure_ascii=False, indent=2)
+    system_prompt = f"{REACT_AGENT_SYSTEM_PROMPT}\n\n{FINAL_TRAVEL_SYNTHESIS_PROMPT}"
+    gemini_model = settings.get("gemini_model", "gemini-2.5-flash")
+    openai_model = settings.get("openai_model", "gpt-4o-mini")
+
+    if gemini_key:
+        try:
+            started = time.time()
+            answer = GeminiProvider(api_key=gemini_key, model=gemini_model).generate(prompt, system_prompt=system_prompt)
+            trace.append(
+                {
+                    "step": len(trace) + 1,
+                    "action_type": "LLM_SYNTHESIS",
+                    "provider": "gemini",
+                    "model": gemini_model,
+                    "thought": "Gemini duoc uu tien khi co API key.",
+                    "latency_ms": round((time.time() - started) * 1000, 2),
+                }
+            )
+            return answer, "gemini"
+        except Exception as exc:
+            if not openai_key or not _is_quota_error(exc):
+                raise
+            trace.append(
+                {
+                    "step": len(trace) + 1,
+                    "action_type": "LLM_FALLBACK",
+                    "from_provider": "gemini",
+                    "to_provider": "openai",
+                    "reason": str(exc),
+                    "thought": "Gemini het quota/rate-limit, fallback sang GPT.",
+                    "latency_ms": 0,
+                }
+            )
+
+    started = time.time()
+    answer = OpenAIProvider(api_key=openai_key, model=openai_model).generate(prompt, system_prompt=system_prompt)
+    trace.append(
+        {
+            "step": len(trace) + 1,
+            "action_type": "LLM_SYNTHESIS",
+            "provider": "openai",
+            "model": openai_model,
+            "thought": "Dung GPT vi khong co Gemini key hoac Gemini da het quota.",
+            "latency_ms": round((time.time() - started) * 1000, 2),
+        }
+    )
+    return answer, "openai"
+
+
 def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
     state = load_state()
     profile = state["profile"]
@@ -197,18 +268,18 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
         "observations": observations,
     }
 
-    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not openai_key or openai_key == "your_openai_api_key_here":
+    try:
+        final_answer, used_provider = _generate_with_model_fallback(synthesis_payload, settings, trace)
+    except ValueError:
         final_answer = (
-            "Chưa cấu hình OpenAI API key nên mình không sinh lịch trình bằng GPT. "
-            "Các MCP tools đã sẵn sàng dùng API thật; hãy mở Settings và nhập OpenAI API key, "
-            "hoặc thêm OPENAI_API_KEY vào file .env rồi gửi lại yêu cầu."
+            "Chưa cấu hình API key nên mình không sinh lịch trình bằng LLM thật. "
+            "Hãy mở Settings và nhập GEMINI_API_KEY hoặc OPENAI_API_KEY, hoặc thêm key vào file .env rồi gửi lại yêu cầu."
         )
         trace.append(
             {
                 "step": len(trace) + 1,
                 "action_type": "CONFIG_REQUIRED",
-                "thought": "Dung xu ly vi che do real API yeu cau OpenAI API key, khong dung mock.",
+                "thought": "Dung xu ly vi che do real API yeu cau Gemini hoac GPT API key.",
                 "output": final_answer,
                 "latency_ms": 0,
             }
@@ -216,14 +287,21 @@ def answer_travel_request(session_id: str, user_message: str) -> Dict[str, Any]:
         append_message(session_id, "assistant", final_answer, trace)
         save_waterfall_trace(trace)
         return {"answer": final_answer, "trace": trace, "intent": intent, "observations": observations}
-
-    os.environ["LLM_PROVIDER"] = "openai"
-    os.environ["LLM_MODEL"] = settings.get("model", "gpt-4o-mini")
-    provider = OpenAIProvider(api_key=openai_key, model=settings.get("model", "gpt-4o-mini"))
-    final_answer = provider.generate(
-        json.dumps(synthesis_payload, ensure_ascii=False, indent=2),
-        system_prompt=f"{REACT_AGENT_SYSTEM_PROMPT}\n\n{FINAL_TRAVEL_SYNTHESIS_PROMPT}",
-    )
+    except Exception as exc:
+        final_answer = f"Không thể gọi LLM thật: {exc}"
+        trace.append(
+            {
+                "step": len(trace) + 1,
+                "action_type": "LLM_ERROR",
+                "thought": "LLM provider tra ve loi va khong co fallback hop le.",
+                "error": str(exc),
+                "output": final_answer,
+                "latency_ms": 0,
+            }
+        )
+        append_message(session_id, "assistant", final_answer, trace)
+        save_waterfall_trace(trace)
+        return {"answer": final_answer, "trace": trace, "intent": intent, "observations": observations}
 
     summary = f"{intent['destination']} | {intent['duration_days']} ngày | {intent['budget']} | {', '.join(intent['interests'])}"
     saved = _call_tool(

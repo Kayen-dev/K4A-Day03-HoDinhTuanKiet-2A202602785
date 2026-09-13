@@ -1,4 +1,4 @@
-const state = {
+﻿const state = {
   sessions: [],
   activeSessionId: null,
   profile: {},
@@ -30,7 +30,8 @@ function renderProfile() {
     profile.travel_style && `Style: ${profile.travel_style}`,
     profile.budget_level && `Budget: ${profile.budget_level}`,
     profile.interests?.length && `Interests: ${profile.interests.join(", ")}`,
-    state.settings?.has_openai_key ? "GPT: connected" : "GPT: API key needed",
+    state.settings?.has_gemini_key ? "Gemini: connected" : "Gemini: key needed",
+    state.settings?.has_openai_key ? "GPT: connected" : "GPT: fallback key needed",
   ].filter(Boolean);
   $("#profileStrip").innerHTML = items.map((item) => `<span class="profile-pill">${escapeHtml(item)}</span>`).join("");
 }
@@ -42,7 +43,7 @@ function renderSessions() {
       (session) => `
         <button class="session-item ${session.id === state.activeSessionId ? "active" : ""}" data-session="${session.id}" type="button">
           <strong>${escapeHtml(session.title || "New trip")}</strong>
-          <small>${session.message_count} messages · ${formatDate(session.updated_at)}</small>
+          <small>${session.message_count ?? session.messages?.length ?? 0} messages - ${formatDate(session.updated_at)}</small>
         </button>
       `,
     )
@@ -72,7 +73,7 @@ function renderMessages(session) {
   const messages = session?.messages || [];
   $("#messages").innerHTML = messages.length
     ? messages.map(renderMessage).join("")
-    : `<div class="message assistant">Chào bạn. Hãy điền profile cơ bản, sau đó hỏi mình về một chuyến đi. Mình sẽ gọi MCP tools để kiểm tra thời tiết, địa điểm và khoảng cách trước khi lập lịch trình.</div>`;
+    : `<div class="message assistant">ChÃ o báº¡n. HÃ£y Ä‘iá»n profile cÆ¡ báº£n, sau Ä‘Ã³ há»i mÃ¬nh vá» má»™t chuyáº¿n Ä‘i. MÃ¬nh sáº½ gá»i MCP tools Ä‘á»ƒ kiá»ƒm tra thá»i tiáº¿t, Ä‘á»‹a Ä‘iá»ƒm vÃ  khoáº£ng cÃ¡ch trÆ°á»›c khi láº­p lá»‹ch trÃ¬nh.</div>`;
   $("#messages").scrollTop = $("#messages").scrollHeight;
 }
 
@@ -184,7 +185,7 @@ $("#settingsForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
   const payload = Object.fromEntries(form.entries());
-  payload.provider = "openai";
+  payload.provider = "auto";
   const result = await api("/api/settings", { method: "POST", body: JSON.stringify(payload) });
   state.settings = result.settings;
   renderProfile();
@@ -194,3 +195,4 @@ $("#settingsForm").addEventListener("submit", async (event) => {
 boot().catch((error) => {
   $("#messages").innerHTML = `<article class="message assistant">${escapeHtml(error.message)}</article>`;
 });
+

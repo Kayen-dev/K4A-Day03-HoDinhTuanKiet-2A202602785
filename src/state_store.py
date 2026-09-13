@@ -11,11 +11,15 @@ from copy import deepcopy
 from datetime import datetime
 from typing import Any, Dict, List
 
+from dotenv import load_dotenv
+
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 STATE_PATH = os.path.join(DATA_DIR, "travel_agent_state.json")
 ENV_PATH = os.path.join(BASE_DIR, ".env")
+
+load_dotenv(ENV_PATH)
 
 
 DEFAULT_STATE: Dict[str, Any] = {
@@ -30,9 +34,12 @@ DEFAULT_STATE: Dict[str, Any] = {
         "preferred_language": "vi",
     },
     "settings": {
-        "provider": "openai",
+        "provider": "auto",
+        "openai_model": "gpt-4o-mini",
+        "gemini_model": "gemini-2.5-flash",
         "model": "gpt-4o-mini",
         "has_openai_key": False,
+        "has_gemini_key": False,
     },
     "sessions": [],
     "memories": [],
@@ -54,9 +61,16 @@ def load_state() -> Dict[str, Any]:
     for key, value in DEFAULT_STATE.items():
         if isinstance(value, dict):
             merged[key] = {**value, **state.get(key, {})}
-    if merged.get("settings", {}).get("provider") == "mock":
-        merged["settings"]["provider"] = "openai"
+    if merged.get("settings", {}).get("provider") in ["mock", "openai", "gemini"]:
+        merged["settings"]["provider"] = "auto"
+    merged["settings"]["has_openai_key"] = _has_key("OPENAI_API_KEY") or merged["settings"].get("has_openai_key", False)
+    merged["settings"]["has_gemini_key"] = _has_key("GEMINI_API_KEY") or merged["settings"].get("has_gemini_key", False)
     return merged
+
+
+def _has_key(name: str) -> bool:
+    value = os.getenv(name, "").strip()
+    return bool(value) and not value.startswith("your_")
 
 
 def save_state(state: Dict[str, Any]) -> None:
@@ -79,30 +93,39 @@ def update_profile(profile: Dict[str, Any]) -> Dict[str, Any]:
 
 def update_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
     state = load_state()
-    provider = settings.get("provider") or state["settings"].get("provider", "openai")
-    model = settings.get("model") or state["settings"].get("model", "gpt-4o-mini")
+    provider = "auto"
+    openai_model = settings.get("openai_model") or settings.get("model") or state["settings"].get("openai_model", "gpt-4o-mini")
+    gemini_model = settings.get("gemini_model") or state["settings"].get("gemini_model", "gemini-2.5-flash")
     openai_key = settings.get("openai_api_key", "").strip()
+    gemini_key = settings.get("gemini_api_key", "").strip()
 
     state["settings"].update(
         {
             "provider": provider,
-            "model": model,
-            "has_openai_key": bool(openai_key) or state["settings"].get("has_openai_key", False),
+            "model": gemini_model,
+            "openai_model": openai_model,
+            "gemini_model": gemini_model,
+            "has_openai_key": bool(openai_key) or _has_key("OPENAI_API_KEY") or state["settings"].get("has_openai_key", False),
+            "has_gemini_key": bool(gemini_key) or _has_key("GEMINI_API_KEY") or state["settings"].get("has_gemini_key", False),
         }
     )
     save_state(state)
 
+    env_values = {"LLM_PROVIDER": "auto", "OPENAI_MODEL": openai_model, "GEMINI_MODEL": gemini_model}
     if openai_key:
-        write_env_values({"LLM_PROVIDER": "openai", "OPENAI_API_KEY": openai_key, "LLM_MODEL": model})
-        os.environ["LLM_PROVIDER"] = "openai"
+        env_values["OPENAI_API_KEY"] = openai_key
         os.environ["OPENAI_API_KEY"] = openai_key
-        os.environ["LLM_MODEL"] = model
-    else:
-        os.environ["LLM_PROVIDER"] = provider
-        os.environ["LLM_MODEL"] = model
+    if gemini_key:
+        env_values["GEMINI_API_KEY"] = gemini_key
+        os.environ["GEMINI_API_KEY"] = gemini_key
+    write_env_values(env_values)
+    os.environ["LLM_PROVIDER"] = "auto"
+    os.environ["OPENAI_MODEL"] = openai_model
+    os.environ["GEMINI_MODEL"] = gemini_model
 
     public_settings = dict(state["settings"])
     public_settings.pop("openai_api_key", None)
+    public_settings.pop("gemini_api_key", None)
     return public_settings
 
 

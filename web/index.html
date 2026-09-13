@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="utf-8" />
@@ -53,7 +53,7 @@
             <textarea
               id="messageInput"
               rows="3"
-              placeholder="Ví dụ: Tôi muốn đi Đà Nẵng 3 ngày 2 đêm, ngân sách 5 triệu/người, thích biển và đồ ăn địa phương. Hãy kiểm tra thời tiết và lập lịch trình."
+              placeholder="VÃ­ dá»¥: TÃ´i muá»‘n Ä‘i ÄÃ  Náºµng 3 ngÃ y 2 Ä‘Ãªm, ngÃ¢n sÃ¡ch 5 triá»‡u/ngÆ°á»i, thÃ­ch biá»ƒn vÃ  Ä‘á»“ Äƒn Ä‘á»‹a phÆ°Æ¡ng. HÃ£y kiá»ƒm tra thá»i tiáº¿t vÃ  láº­p lá»‹ch trÃ¬nh."
             ></textarea>
             <button type="submit" id="sendBtn">Send</button>
           </form>
@@ -65,46 +65,46 @@
       <form method="dialog" class="dialog-body" id="profileForm">
         <div class="dialog-heading">
           <p class="eyebrow">First run profile</p>
-          <h2>Cho agent vài thông tin để cá nhân hóa chuyến đi</h2>
+          <h2>Cho agent vÃ i thÃ´ng tin Ä‘á»ƒ cÃ¡ nhÃ¢n hÃ³a chuyáº¿n Ä‘i</h2>
         </div>
         <div class="grid two">
           <label>
-            Tên của bạn
-            <input name="name" placeholder="Tuấn Kiệt" />
+            TÃªn cá»§a báº¡n
+            <input name="name" placeholder="Tuáº¥n Kiá»‡t" />
           </label>
           <label>
-            Thành phố xuất phát
+            ThÃ nh phá»‘ xuáº¥t phÃ¡t
             <input name="home_city" placeholder="Ho Chi Minh City, Vietnam" />
           </label>
           <label>
-            Phong cách du lịch
+            Phong cÃ¡ch du lá»‹ch
             <select name="travel_style">
-              <option value="balanced">Cân bằng</option>
-              <option value="slow">Chậm, ít di chuyển</option>
-              <option value="packed">Đi nhiều điểm</option>
-              <option value="comfort">Ưu tiên thoải mái</option>
+              <option value="balanced">CÃ¢n báº±ng</option>
+              <option value="slow">Cháº­m, Ã­t di chuyá»ƒn</option>
+              <option value="packed">Äi nhiá»u Ä‘iá»ƒm</option>
+              <option value="comfort">Æ¯u tiÃªn thoáº£i mÃ¡i</option>
             </select>
           </label>
           <label>
-            Ngân sách thường dùng
+            NgÃ¢n sÃ¡ch thÆ°á»ng dÃ¹ng
             <select name="budget_level">
-              <option value="mid-range">Vừa phải</option>
-              <option value="budget">Tiết kiệm</option>
-              <option value="premium">Thoải mái</option>
+              <option value="mid-range">Vá»«a pháº£i</option>
+              <option value="budget">Tiáº¿t kiá»‡m</option>
+              <option value="premium">Thoáº£i mÃ¡i</option>
             </select>
           </label>
         </div>
         <label>
-          Sở thích
+          Sá»Ÿ thÃ­ch
           <input name="interests" placeholder="beach, food, culture" />
         </label>
         <label>
-          Lưu ý ăn uống
-          <input name="dietary_notes" placeholder="Không ăn cay, halal, vegetarian..." />
+          LÆ°u Ã½ Äƒn uá»‘ng
+          <input name="dietary_notes" placeholder="KhÃ´ng Äƒn cay, halal, vegetarian..." />
         </label>
         <label>
-          Lưu ý di chuyển
-          <input name="mobility_notes" placeholder="Không muốn đi bộ quá nhiều..." />
+          LÆ°u Ã½ di chuyá»ƒn
+          <input name="mobility_notes" placeholder="KhÃ´ng muá»‘n Ä‘i bá»™ quÃ¡ nhiá»u..." />
         </label>
         <div class="dialog-actions">
           <button type="button" id="skipProfileBtn" class="ghost">Skip</button>
@@ -117,17 +117,27 @@
       <form method="dialog" class="dialog-body" id="settingsForm">
         <div class="dialog-heading">
           <p class="eyebrow">Model settings</p>
-          <h2>Kết nối GPT API key</h2>
-          <p class="muted">API key được lưu trong file .env local của project này.</p>
+          <h2>Connect Gemini and GPT keys</h2>
+          <p class="muted">Keys are saved to the local .env file. Gemini is preferred; GPT is used when Gemini is unavailable or out of quota.</p>
         </div>
-        <label>
-          OpenAI API key
-          <input name="openai_api_key" type="password" placeholder="sk-..." autocomplete="off" />
-        </label>
-        <label>
-          Model
-          <input name="model" value="gpt-4o-mini" />
-        </label>
+        <div class="grid two">
+          <label>
+            Gemini API key
+            <input name="gemini_api_key" type="password" placeholder="AIza..." autocomplete="off" />
+          </label>
+          <label>
+            Gemini model
+            <input name="gemini_model" value="gemini-2.5-flash" />
+          </label>
+          <label>
+            OpenAI API key
+            <input name="openai_api_key" type="password" placeholder="sk-..." autocomplete="off" />
+          </label>
+          <label>
+            OpenAI model
+            <input name="openai_model" value="gpt-4o-mini" />
+          </label>
+        </div>
         <div class="dialog-actions">
           <button type="button" id="closeSettingsBtn" class="ghost">Close</button>
           <button type="submit">Save settings</button>
@@ -138,3 +148,4 @@
     <script src="/app.js"></script>
   </body>
 </html>
+
