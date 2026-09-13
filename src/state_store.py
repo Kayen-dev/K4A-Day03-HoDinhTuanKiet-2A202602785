@@ -15,7 +15,10 @@ from dotenv import load_dotenv
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+DATA_DIR = os.getenv(
+    "TRAVEL_DATA_DIR",
+    os.path.join("/tmp", "travel-agent") if os.getenv("VERCEL") else os.path.join(BASE_DIR, "data"),
+)
 STATE_PATH = os.path.join(DATA_DIR, "travel_agent_state.json")
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 
@@ -160,6 +163,11 @@ def update_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def write_env_values(values: Dict[str, str]) -> None:
+    if os.getenv("VERCEL"):
+        for key, value in values.items():
+            os.environ[key] = value
+        return
+
     lines: List[str] = []
     if os.path.exists(ENV_PATH):
         with open(ENV_PATH, "r", encoding="utf-8") as f:

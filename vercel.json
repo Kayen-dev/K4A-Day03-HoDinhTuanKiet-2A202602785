@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/sessions/:id",
+      "destination": "/api/sessions.py?id=:id"
+    },
+    {
+      "source": "/",
+      "destination": "/web/index.html"
+    },
+    {
+      "source": "/app.js",
+      "destination": "/web/app.js"
+    },
+    {
+      "source": "/styles.css",
+      "destination": "/web/styles.css"
+    }
+  ]
+}
