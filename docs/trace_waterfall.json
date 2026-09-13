@@ -1,29 +1,117 @@
 [
   {
     "step": 1,
-    "query": "Chào bạn, bạn có thể giới thiệu quy chế học vụ cơ bản của Đại học VinUni không?",
-    "action_type": "FINAL_ANSWER",
-    "thought": "Câu hỏi chung về quy chế học vụ, trả lời trực tiếp không cần gọi Tool.",
-    "output": "[Mock Agent Response]: Xin chào! Quy chế học vụ VinUni yêu cầu sinh viên tích lũy tối thiểu 120 tín chỉ và duy trì GPA trên 2.0 để tốt nghiệp.",
-    "latency_ms": 2845.93
-  },
-  {
-    "step": 1,
-    "query": "Hãy tra cứu thông tin học vụ của sinh viên SV2026001.",
-    "action_type": "TOOL_EXECUTION",
-    "tool_name": "academic_query",
-    "arguments": {
-      "student_id": "SV2026001"
+    "action_type": "THOUGHT",
+    "thought": "Phan tich yeu cau du lich, profile va memory de chon tool MCP can goi.",
+    "intent": {
+      "destination": "Da Nang",
+      "duration_days": 3,
+      "start_date": "2026-09-13",
+      "budget": "mid-range",
+      "interests": [
+        "beach",
+        "food"
+      ],
+      "origin": ""
     },
-    "observation": {},
-    "latency_ms": 799.12
+    "latency_ms": 0
   },
   {
     "step": 2,
-    "query": "Hãy tra cứu thông tin học vụ của sinh viên SV2026001.",
-    "action_type": "FINAL_ANSWER",
-    "thought": "Tổng hợp kết quả từ MCP Server thành công.",
-    "output": "Chưa thể trả lời chi tiết do chưa nhận được dữ liệu từ MCP Server (hãy hoàn thành TODO 2.1).",
-    "latency_ms": 10.0
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "get_weather_forecast",
+    "arguments": {
+      "destination": "Da Nang",
+      "start_date": "2026-09-13",
+      "duration_days": 3
+    },
+    "observation": {
+      "status": "SUCCESS",
+      "source": "Open-Meteo",
+      "place": {
+        "name": "Đà Nẵng",
+        "country": "Việt Nam",
+        "latitude": 16.06778,
+        "longitude": 108.22083,
+        "timezone": "Asia/Ho_Chi_Minh"
+      },
+      "forecast": [
+        {
+          "date": "2026-09-13",
+          "temp_min_c": 24.8,
+          "temp_max_c": 29.8,
+          "rain_probability_percent": 100,
+          "weather_code": 95,
+          "planning_hint": "Uu tien hoat dong trong nha"
+        },
+        {
+          "date": "2026-09-14",
+          "temp_min_c": 25.9,
+          "temp_max_c": 28.4,
+          "rain_probability_percent": 86,
+          "weather_code": 53,
+          "planning_hint": "Uu tien hoat dong trong nha"
+        },
+        {
+          "date": "2026-09-15",
+          "temp_min_c": 25.7,
+          "temp_max_c": 30.2,
+          "rain_probability_percent": 92,
+          "weather_code": 55,
+          "planning_hint": "Uu tien hoat dong trong nha"
+        }
+      ]
+    },
+    "latency_ms": 2010.15
+  },
+  {
+    "step": 3,
+    "action_type": "TOOL_EXECUTION",
+    "tool_name": "search_travel_places",
+    "arguments": {
+      "destination": "Da Nang",
+      "interests": [
+        "beach",
+        "food"
+      ],
+      "limit": 7
+    },
+    "observation": {
+      "status": "SUCCESS",
+      "source": "Wikipedia GeoSearch",
+      "destination": "Da Nang",
+      "interests": [
+        "beach",
+        "food"
+      ],
+      "places": [
+        {
+          "name": "Hàn River Bridge",
+          "distance_m": 804.1,
+          "tags": [
+            "beach",
+            "food"
+          ],
+          "why": "Dia diem gan khu vuc du lich, can xep theo thoi tiet va so thich."
+        },
+        {
+          "name": "Museum of Cham Sculpture",
+          "distance_m": 898,
+          "tags": [
+            "beach",
+            "food"
+          ],
+          "why": "Dia diem gan khu vuc du lich, can xep theo thoi tiet va so thich."
+        }
+      ]
+    },
+    "latency_ms": 2117.1
+  },
+  {
+    "step": 4,
+    "action_type": "CONFIG_REQUIRED",
+    "thought": "Dung xu ly vi che do real API yeu cau OpenAI API key, khong dung mock.",
+    "output": "Chưa cấu hình OpenAI API key nên mình không sinh lịch trình bằng GPT. Các MCP tools đã sẵn sàng dùng API thật; hãy mở Settings và nhập OpenAI API key, hoặc thêm OPENAI_API_KEY vào file .env rồi gửi lại yêu cầu.",
+    "latency_ms": 0
   }
 ]

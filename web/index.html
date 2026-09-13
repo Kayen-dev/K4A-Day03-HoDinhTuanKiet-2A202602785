@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Travel Planning ReAct Agent</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar" aria-label="Trip sessions">
+        <div class="brand">
+          <span class="brand-mark">TP</span>
+          <div>
+            <h1>Travel Agent</h1>
+            <p>MCP + live APIs</p>
+          </div>
+        </div>
+
+        <button class="new-chat" id="newSessionBtn" type="button">New trip window</button>
+
+        <section class="panel compact">
+          <div class="panel-title">
+            <span>Chat windows</span>
+            <small id="sessionCount">0</small>
+          </div>
+          <div class="session-list" id="sessionList"></div>
+        </section>
+
+        <section class="panel compact">
+          <div class="panel-title">
+            <span>Memory</span>
+            <small>recent</small>
+          </div>
+          <div class="memory-list" id="memoryList"></div>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Travel Planning ReAct Agent</p>
+            <h2 id="activeTitle">Personalized itinerary builder</h2>
+          </div>
+          <button class="settings-btn" id="settingsBtn" type="button">Settings</button>
+        </header>
+
+        <section class="profile-strip" id="profileStrip"></section>
+
+        <section class="chat-card">
+          <div class="messages" id="messages"></div>
+          <form class="composer" id="chatForm">
+            <textarea
+              id="messageInput"
+              rows="3"
+              placeholder="Ví dụ: Tôi muốn đi Đà Nẵng 3 ngày 2 đêm, ngân sách 5 triệu/người, thích biển và đồ ăn địa phương. Hãy kiểm tra thời tiết và lập lịch trình."
+            ></textarea>
+            <button type="submit" id="sendBtn">Send</button>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <dialog class="onboarding" id="profileDialog">
+      <form method="dialog" class="dialog-body" id="profileForm">
+        <div class="dialog-heading">
+          <p class="eyebrow">First run profile</p>
+          <h2>Cho agent vài thông tin để cá nhân hóa chuyến đi</h2>
+        </div>
+        <div class="grid two">
+          <label>
+            Tên của bạn
+            <input name="name" placeholder="Tuấn Kiệt" />
+          </label>
+          <label>
+            Thành phố xuất phát
+            <input name="home_city" placeholder="Ho Chi Minh City, Vietnam" />
+          </label>
+          <label>
+            Phong cách du lịch
+            <select name="travel_style">
+              <option value="balanced">Cân bằng</option>
+              <option value="slow">Chậm, ít di chuyển</option>
+              <option value="packed">Đi nhiều điểm</option>
+              <option value="comfort">Ưu tiên thoải mái</option>
+            </select>
+          </label>
+          <label>
+            Ngân sách thường dùng
+            <select name="budget_level">
+              <option value="mid-range">Vừa phải</option>
+              <option value="budget">Tiết kiệm</option>
+              <option value="premium">Thoải mái</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          Sở thích
+          <input name="interests" placeholder="beach, food, culture" />
+        </label>
+        <label>
+          Lưu ý ăn uống
+          <input name="dietary_notes" placeholder="Không ăn cay, halal, vegetarian..." />
+        </label>
+        <label>
+          Lưu ý di chuyển
+          <input name="mobility_notes" placeholder="Không muốn đi bộ quá nhiều..." />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="skipProfileBtn" class="ghost">Skip</button>
+          <button type="submit">Save profile</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="onboarding" id="settingsDialog">
+      <form method="dialog" class="dialog-body" id="settingsForm">
+        <div class="dialog-heading">
+          <p class="eyebrow">Model settings</p>
+          <h2>Kết nối GPT API key</h2>
+          <p class="muted">API key được lưu trong file .env local của project này.</p>
+        </div>
+        <label>
+          OpenAI API key
+          <input name="openai_api_key" type="password" placeholder="sk-..." autocomplete="off" />
+        </label>
+        <label>
+          Model
+          <input name="model" value="gpt-4o-mini" />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="closeSettingsBtn" class="ghost">Close</button>
+          <button type="submit">Save settings</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

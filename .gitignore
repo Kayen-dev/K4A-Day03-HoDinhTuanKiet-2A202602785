@@ -8,6 +8,7 @@ __pycache__/
 
 # Environment Variables & Keys
 .env
+data/
 
 # System & IDE files
 .DS_Store

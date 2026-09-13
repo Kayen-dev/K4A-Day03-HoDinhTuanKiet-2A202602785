@@ -1,37 +1,37 @@
 [
   {
     "id": "TC01",
-    "type": "direct_query",
-    "question": "Chào bạn, bạn có thể giới thiệu quy chế học vụ cơ bản của Đại học VinUni không?",
-    "expected_behavior": "Chatbot trả lời trực tiếp từ System Prompt, không cần gọi bất kỳ Tool nào.",
+    "type": "direct_profile_query",
+    "question": "Tôi thích lịch trình chậm, ngân sách vừa phải. Hãy ghi nhớ phong cách này cho các chuyến đi sau.",
+    "expected_behavior": "Agent dùng profile và memory để cá nhân hóa câu trả lời, chưa cần gọi API du lịch nếu chỉ là cập nhật sở thích.",
     "complexity": "Low"
   },
   {
     "id": "TC02",
-    "type": "single_tool_query",
-    "question": "Hãy tra cứu thông tin học vụ của sinh viên SV2026001.",
-    "expected_behavior": "Agent nhận diện nhu cầu tra cứu, tự động phát sinh Tool Call 'academic_query' với mã SV2026001.",
+    "type": "weather_tool_query",
+    "question": "Ngày thứ 2 ở Đà Nẵng có mưa không? Nếu mưa hãy gợi ý hoạt động trong nhà.",
+    "expected_behavior": "Agent gọi get_weather_forecast qua MCP, dựa trên rain_probability_percent để trả lời.",
     "complexity": "Medium"
   },
   {
     "id": "TC03",
-    "type": "appointment_booking",
-    "question": "TODO: [Học viên tự viết câu hỏi yêu cầu Agent đặt lịch hẹn tư vấn học vụ]",
-    "expected_behavior": "Agent tự động phát sinh Tool Call 'schedule_appointment' với đúng thời gian và thông tin sinh viên.",
+    "type": "places_tool_query",
+    "question": "Tôi muốn đi Hội An 2 ngày, thích văn hóa và đồ ăn địa phương. Hãy tìm các điểm phù hợp.",
+    "expected_behavior": "Agent gọi search_travel_places qua MCP, ưu tiên địa điểm theo interests.",
     "complexity": "Medium"
   },
   {
     "id": "TC04",
-    "type": "multi_step_reasoning",
-    "question": "TODO: [Học viên tự viết câu hỏi yêu cầu Agent suy luận ReAct đa bước (Tra cứu -> Đặt lịch với Cố vấn)]",
-    "expected_behavior": "Agent thực hiện chuỗi suy luận ReAct: Tra cứu cố vấn học tập của sinh viên trước, sau đó tiến hành đặt lịch hẹn.",
+    "type": "multi_tool_planning",
+    "question": "Tôi muốn đi Đà Nẵng 3 ngày 2 đêm, ngân sách khoảng 5 triệu/người. Tôi thích biển và đồ ăn địa phương. Hãy kiểm tra thời tiết và lập lịch trình phù hợp.",
+    "expected_behavior": "Agent gọi weather + places, quan sát kết quả rồi tổng hợp lịch trình theo ngày và phương án dự phòng.",
     "complexity": "High"
   },
   {
     "id": "TC05",
-    "type": "edge_case_handling",
-    "question": "TODO: [Học viên tự viết câu hỏi tra cứu mã sinh viên không tồn tại (ví dụ SV9999999)]",
-    "expected_behavior": "Agent nhận kết quả NOT_FOUND từ Tool và đưa ra phản hồi lịch sự, chính xác không bịa đặt dữ liệu.",
-    "complexity": "Medium"
+    "type": "personalized_memory",
+    "question": "Dựa trên sở thích đã lưu của tôi, hãy lập kế hoạch Phú Quốc 3 ngày theo phong cách chậm và ít di chuyển.",
+    "expected_behavior": "Agent kết hợp profile, memory, weather/places API và lưu lại kế hoạch mới vào memory.",
+    "complexity": "High"
   }
 ]
