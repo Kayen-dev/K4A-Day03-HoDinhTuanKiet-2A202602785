@@ -53,7 +53,7 @@
             <textarea
               id="messageInput"
               rows="3"
-              placeholder="VÃ­ dá»¥: TÃ´i muá»‘n Ä‘i ÄÃ  Náºµng 3 ngÃ y 2 Ä‘Ãªm, ngÃ¢n sÃ¡ch 5 triá»‡u/ngÆ°á»i, thÃ­ch biá»ƒn vÃ  Ä‘á»“ Äƒn Ä‘á»‹a phÆ°Æ¡ng. HÃ£y kiá»ƒm tra thá»i tiáº¿t vÃ  láº­p lá»‹ch trÃ¬nh."
+              placeholder="Ví dụ: Tôi muốn đi Đà Nẵng 3 ngày 2 đêm, ngân sách 5 triệu/người, thích biển và đồ ăn địa phương. Hãy kiểm tra thời tiết và lập lịch trình."
             ></textarea>
             <button type="submit" id="sendBtn">Send</button>
           </form>
@@ -65,46 +65,46 @@
       <form method="dialog" class="dialog-body" id="profileForm">
         <div class="dialog-heading">
           <p class="eyebrow">First run profile</p>
-          <h2>Cho agent vÃ i thÃ´ng tin Ä‘á»ƒ cÃ¡ nhÃ¢n hÃ³a chuyáº¿n Ä‘i</h2>
+          <h2>Cho agent vài thông tin để cá nhân hóa chuyến đi</h2>
         </div>
         <div class="grid two">
           <label>
-            TÃªn cá»§a báº¡n
-            <input name="name" placeholder="Tuáº¥n Kiá»‡t" />
+            Tên của bạn
+            <input name="name" placeholder="Tuấn Kiệt" />
           </label>
           <label>
-            ThÃ nh phá»‘ xuáº¥t phÃ¡t
+            Thành phố xuất phát
             <input name="home_city" placeholder="Ho Chi Minh City, Vietnam" />
           </label>
           <label>
-            Phong cÃ¡ch du lá»‹ch
+            Phong cách du lịch
             <select name="travel_style">
-              <option value="balanced">CÃ¢n báº±ng</option>
-              <option value="slow">Cháº­m, Ã­t di chuyá»ƒn</option>
-              <option value="packed">Äi nhiá»u Ä‘iá»ƒm</option>
-              <option value="comfort">Æ¯u tiÃªn thoáº£i mÃ¡i</option>
+              <option value="balanced">Cân bằng</option>
+              <option value="slow">Chậm, ít di chuyển</option>
+              <option value="packed">Đi nhiều điểm</option>
+              <option value="comfort">Ưu tiên thoải mái</option>
             </select>
           </label>
           <label>
-            NgÃ¢n sÃ¡ch thÆ°á»ng dÃ¹ng
+            Ngân sách thường dùng
             <select name="budget_level">
-              <option value="mid-range">Vá»«a pháº£i</option>
-              <option value="budget">Tiáº¿t kiá»‡m</option>
-              <option value="premium">Thoáº£i mÃ¡i</option>
+              <option value="mid-range">Vừa phải</option>
+              <option value="budget">Tiết kiệm</option>
+              <option value="premium">Thoải mái</option>
             </select>
           </label>
         </div>
         <label>
-          Sá»Ÿ thÃ­ch
+          Sở thích
           <input name="interests" placeholder="beach, food, culture" />
         </label>
         <label>
-          LÆ°u Ã½ Äƒn uá»‘ng
-          <input name="dietary_notes" placeholder="KhÃ´ng Äƒn cay, halal, vegetarian..." />
+          Lưu ý ăn uống
+          <input name="dietary_notes" placeholder="Không ăn cay, halal, vegetarian..." />
         </label>
         <label>
-          LÆ°u Ã½ di chuyá»ƒn
-          <input name="mobility_notes" placeholder="KhÃ´ng muá»‘n Ä‘i bá»™ quÃ¡ nhiá»u..." />
+          Lưu ý di chuyển
+          <input name="mobility_notes" placeholder="Không muốn đi bộ quá nhiều..." />
         </label>
         <div class="dialog-actions">
           <button type="button" id="skipProfileBtn" class="ghost">Skip</button>

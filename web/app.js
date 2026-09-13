@@ -73,7 +73,7 @@ function renderMessages(session) {
   const messages = session?.messages || [];
   $("#messages").innerHTML = messages.length
     ? messages.map(renderMessage).join("")
-    : `<div class="message assistant">ChÃ o báº¡n. HÃ£y Ä‘iá»n profile cÆ¡ báº£n, sau Ä‘Ã³ há»i mÃ¬nh vá» má»™t chuyáº¿n Ä‘i. MÃ¬nh sáº½ gá»i MCP tools Ä‘á»ƒ kiá»ƒm tra thá»i tiáº¿t, Ä‘á»‹a Ä‘iá»ƒm vÃ  khoáº£ng cÃ¡ch trÆ°á»›c khi láº­p lá»‹ch trÃ¬nh.</div>`;
+    : `<div class="message assistant">Chào bạn. Hãy điền profile cơ bản, sau đó hỏi mình về một chuyến đi. Mình sẽ gọi MCP tools để kiểm tra thời tiết, địa điểm và khoảng cách trước khi lập lịch trình.</div>`;
   $("#messages").scrollTop = $("#messages").scrollHeight;
 }
 
