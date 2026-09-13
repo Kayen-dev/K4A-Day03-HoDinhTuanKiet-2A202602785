@@ -98,7 +98,6 @@ async function boot() {
   state.profile = payload.profile;
   state.settings = payload.settings;
   state.sessions = payload.sessions;
-  state.settings = payload.settings;
   renderProfile();
   renderMemories(payload.memories);
   if (!state.profile?.name && HTMLDialogElement.prototype.showModal) {
@@ -164,7 +163,6 @@ $("#chatForm").addEventListener("submit", async (event) => {
     renderMessages(payload.session);
     const fresh = await api("/api/state");
     state.profile = fresh.profile;
-    state.settings = fresh.settings;
     renderProfile();
     renderMemories(fresh.memories);
   } catch (error) {
